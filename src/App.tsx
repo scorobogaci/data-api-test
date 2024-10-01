@@ -1,12 +1,16 @@
+import '@aws-amplify/ui-react/styles.css'
+import '@aws-amplify/ui-react-storage/storage-browser-styles.css';
 import { useEffect, useState } from "react";
 import type { Schema } from "../amplify/data/resource";
 import { generateClient } from "aws-amplify/data";
 import {Authenticator} from "@aws-amplify/ui-react";
+import {fetchAuthSession, fetchUserAttributes, getCurrentUser, updateUserAttributes} from "@aws-amplify/auth";
+import {StorageBrowser} from "@aws-amplify/ui-react-storage";
 
 const client = generateClient<Schema>();
 
 function App() {
-  const [todos, setTodos] = useState<Array<Schema["Todo"]["type"]>>([]);
+  const [, setTodos] = useState<Array<Schema["Todo"]["type"]>>([]);
 
   useEffect(() => {
     client.models.Todo.observeQuery().subscribe({
@@ -18,33 +22,41 @@ function App() {
     client.models.Todo.create({ content: window.prompt("Todo content") });
   }
 
-    function createAccount() {
-        client.models.Account.create({ identity:'gahghfsdf-sdfbjjf-sjdfhs',email:'scorobogaciion@gmail.com' });
+    const defaultPrefixes = [
+        (identityId: string) => `files/${identityId}/`,
+    ];
+
+    async function createAccount() {
+        const session = await fetchAuthSession();
+        console.log("Cognito IdentityId : ", session.identityId);
+        const user = await getCurrentUser();
+        console.log("current user : ", user);
+        const userAttributes = await fetchUserAttributes();
+        console.log("userAttributes : ", userAttributes);
+        const isFirstTimeLogin = !userAttributes['custom:identity'] && userAttributes['custom:firstLogin'] === 'true';
+        if (1 === 1 || isFirstTimeLogin) {
+            console.log("Creating account on first sign in...")
+            await updateUserAttributes({
+                userAttributes: {
+                    'custom:identity': session.identityId,
+                    'custom:firstLogin': 'false'
+                },
+            });
+        }
+        client.models.Account.create({identity: session.identityId!, email: userAttributes.email});
     }
 
   return (
 
       <Authenticator>
-          {({ signOut,user }) => (
-    <main>
-        <h1>{user?.signInDetails?.loginId}'s todos</h1>
-      <button onClick={createTodo}>+ new</button>
-      <button onClick={createAccount}>create account</button>
-      <button onClick={signOut}>sign out</button>
-      <ul>
-        {todos.map((todo) => (
-          <li key={todo.id}>{todo.content}</li>
-        ))}
-      </ul>
-      <div>
-        🥳 App successfully hosted. Try creating a new todo.
-        <br />
-        <a href="https://docs.amplify.aws/react/start/quickstart/#make-frontend-updates">
-          Review next step of this tutorial.
-        </a>
-      </div>
-    </main>
-
+          {({signOut, user}) => (
+              <>
+                  <h1>Hi {user?.signInDetails?.loginId}</h1>
+                  <StorageBrowser defaultPrefixes={defaultPrefixes}></StorageBrowser>
+                  <button onClick={signOut}>Sign out</button>
+                  <button onClick={createAccount}>create account</button>
+                  <button onClick={createTodo}>create to do</button>
+              </>
           )}
       </Authenticator>
   );
