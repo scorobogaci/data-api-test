@@ -17,10 +17,15 @@ function App() {
     client.models.Todo.create({ content: window.prompt("Todo content") });
   }
 
+    function createAccount() {
+        client.models.Account.create({ identity:'gahghfsdf-sdfbjjf-sjdfhs',email:'scorobogaciion@gmail.com' });
+    }
+
   return (
     <main>
       <h1>My todos</h1>
       <button onClick={createTodo}>+ new</button>
+      <button onClick={createAccount}>create account</button>
       <ul>
         {todos.map((todo) => (
           <li key={todo.id}>{todo.content}</li>
